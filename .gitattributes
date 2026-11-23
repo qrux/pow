@@ -1,0 +1,2 @@
+# terminal output with escapes and images: compared by make check, not read as diffs
+test/golden/** -diff

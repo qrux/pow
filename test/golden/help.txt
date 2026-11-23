@@ -1,0 +1,88 @@
+usage: pow [-h] [--log FILE] [--log-raw FILE] [--log-mb MB] [--replay FILE]
+           [--follow FILE] [--sudo] [--no-sudo] [--interval MS] [--no-media]
+           [--no-smc] [--smc-all] [--no-temps] [--charts {auto,pixels,text}]
+           [--ane-max W]
+
+pow: a live view of power, load, temperature and fans on Apple Silicon, like top.
+
+By default pow is a display only: it reads, draws, and writes nothing to disk. With --log it also records, like
+sar. It starts without sudo: load, GPU and SoC power, SMC power, fans, temperatures and power mode need none. The
+private data, CPU and ANE watts, needs `sudo powermetrics`: press P and pow asks for your password and switches,
+without restarting (or start that way with --sudo).
+
+What it shows
+  header        time, power mode (High Power, Automatic, Low Power) and source (charger, or battery %), total
+                watts (now, 60 s average, peak), whole-machine watts, the hottest temperature, fan rpm
+  units         ANE, GPU, CPU watts (now, 60 s average, peak) and load %; ANE load is an estimate from its power
+  charts        CPU, GPU, ANE and TEMP over time, newest at the right; TEMP only when there is room, and a
+                thin rule between the charts when there is room for that. CPU and GPU show load (0-100%); ANE
+                shows watts, scaled to the 95th percentile of what's on screen (a sample above it is white).
+                E lays CPU and GPU watts over their load as a white line. Three y labels at the right; the
+                name and current reading by the origin
+  Space         cycles the charts: bars; one stacked area of load (E and P cores, GPU, ANE estimated, each
+                unit a third of the height) with the hottest temperature as a quiet line; and bars whose
+                dots are green, yellow above 70% and red above 90% (TEMP: 70 and 85 C; ANE: of its
+                estimated full power) over dark dots in the unit's color
+  big view      at 160x48 or more: ENC/DEC, temperatures by group (P-cores, E-cores, GPU, die, SSD, battery) and a
+                chart of the hottest one; at the right, SMC power, fans, every core with its watts (codenames
+                for M1 and M2), and SoC power. Below 160x48 the compact view fits 80x24 and grows to fill more.
+                "?" in a row's description is a guess at what an undocumented channel measures
+
+Charts and gauges
+  In a terminal that speaks the Kitty graphics protocol (Ghostty, Kitty, WezTerm) they are LED dot-matrix
+  images; pow asks the terminal at startup. Anywhere else (Terminal.app, tmux, ssh) they are text: block
+  characters and thin lines. --charts overrides the check.
+
+Recording and playback
+  pow --log FILE         also write each sample as a CSV row in FILE: UTC time, CPU/GPU/ANE mW, GPU, cluster and
+                         per-core active %, and fan rpm. FILE is a ring buffer of two halves: FILE is the newest,
+                         FILE.1 the older; together at most --log-mb. Its folder must exist. ENC/DEC,
+                         temperatures, SoC and SMC power are live only and are not saved
+  pow --log-raw FILE     also keep the raw powermetrics output in FILE, the same way (starts with sudo)
+  pow --replay FILE      run through a finished --log CSV or raw powermetrics file, then print the last frame
+  pow --follow FILE      show a --log CSV or raw file that another pow is writing, keeping up as it rotates
+
+Private data (sudo)
+  pow                    starts on IOReport, no password. On macOS 27 the CPU and ANE energy counters only update
+                         while something privileged (powermetrics) samples them, so those watts wait for P;
+                         residency, GPU watts and the rest work from the start
+  P                      asks for your password (pow steps out of its screen for the prompt), then runs
+                         `sudo powermetrics` from there on. Ctrl-C or a wrong password goes back, still without
+  pow --sudo             start with `sudo powermetrics`, asking first, as pow used to
+  pow --no-sudo          never ask: no P, and CPU and ANE watts show "needs sudo"
+
+q quits (so does Ctrl-C). P switches to sudo, once. E shows or hides the power line. Space cycles the charts.
+
+options:
+  -h, --help            show this help message and exit
+
+recording and playback:
+  --log FILE            also write each sample as a CSV row in FILE (and
+                        FILE.1); display only without it
+  --log-raw FILE        also keep the raw powermetrics output in FILE (and
+                        FILE.1)
+  --log-mb MB           most disk each log may use, both halves together
+                        (default: 64)
+  --replay FILE         run through a finished log, then print the last frame
+  --follow FILE         show a log another pow is writing
+
+sources:
+  --sudo                start with sudo powermetrics, asking for your password
+                        first; without it pow starts on IOReport and P
+                        switches
+  --no-sudo             never use sudo: no P; CPU and ANE watts show "needs
+                        sudo"
+  --interval MS         sample period in ms (default: 1000)
+  --no-media            skip IOReport: ENC/DEC, per-core watts, SoC power
+  --no-smc              skip the SMC: whole-machine power, SMC power rows,
+                        fans, core and GPU temperatures
+  --smc-all             also list every other SMC power key that moves, by raw
+                        name
+  --no-temps            skip temperatures
+
+display:
+  --charts {auto,pixels,text}
+                        pixels: LED dots by Kitty graphics; text: block
+                        characters; auto: ask the terminal (default)
+  --ane-max W           ANE watts that count as 100% load; rises to any higher
+                        peak seen (default: 7.5)

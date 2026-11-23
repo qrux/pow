@@ -1,0 +1,10 @@
+# the build
+/pow
+test/c_frames
+test/bench-data.txt
+# links into ~/jorp/pow (logs, docs, chat), not part of the source
+/_*
+test/_to_delete/
+.DS_Store
+# local build notes, kept out of the repo
+/BUILD.md

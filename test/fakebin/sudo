@@ -1,0 +1,9 @@
+#!/bin/sh
+# stands in for `sudo powermetrics ...`: plays back a recorded powermetrics capture, first 300 samples
+exec python3 -c 'import sys
+n = 0
+for line in open(sys.argv[1]):
+    if line.startswith("*** Sampled system activity"):
+        n += 1
+        if n > 300: break
+    sys.stdout.write(line)' "$POW_FAKE_PM"
