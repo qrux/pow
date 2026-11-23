@@ -18,6 +18,13 @@ Requires an Apple silicon Mac and Xcode's command line tools
 (`xcode-select --install`).
 
 ```
+brew install qrux/tap/pow
+```
+
+Homebrew builds it from the release's source on your Mac. Or build it
+yourself:
+
+```
 git clone https://github.com/qrux/pow.git
 cd pow
 make install      # builds pow and copies it to ~/bin

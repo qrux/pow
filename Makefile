@@ -6,6 +6,9 @@
 #   make install     build, then copy ./pow to ~/bin/pow
 #   make uninstall   move ~/bin/pow aside to ~/bin/pow.removed, if it is ours
 #   make clean       remove ./pow
+#   make release VERSION=x.y.z [DRY_RUN=1]
+#                    tag vx.y.z (if new) and publish Formula/pow.rb to the <owner>/homebrew-tap tap (packaging/homebrew/)
+#   make brew-check  install pow from the published tap exactly as a user would
 #
 # install refuses to replace a ~/bin/pow that is not an earlier pow (C or Python, or pm-chart.py, its old name),
 # recognized by the first line of its help, old or new.
@@ -27,7 +30,7 @@ LIBS := -lz -lm -lpthread
 CFLAGS += -Wno-format-truncation
 endif
 
-.PHONY: all check bench install uninstall clean
+.PHONY: all check bench install uninstall clean release brew-check
 
 all: pow
 
@@ -56,3 +59,10 @@ uninstall:
 
 clean:
 	rm -f pow
+
+release:
+	@packaging/homebrew/release.sh "$(VERSION)"
+
+brew-check:
+	@owner=$$(git remote get-url origin | sed -E 's#^git@[^:]+:([^/]+)/.*#\1#') && \
+	brew tap $$owner/tap && brew audit --strict --online $$owner/tap/pow && brew install --build-from-source $$owner/tap/pow && brew test $$owner/tap/pow && "$$(brew --prefix)/bin/pow" -h | sed -n '/^pow: /{p;q;}'

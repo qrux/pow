@@ -1,5 +1,6 @@
-# the build
+# the build, and make release's scratch (build/release, build/homebrew-tap)
 /pow
+/build/
 test/c_frames
 test/bench-data.txt
 # links into ~/jorp/pow (logs, docs, chat), not part of the source
