@@ -1,7 +1,7 @@
 usage: pow [-h] [--log FILE] [--log-raw FILE] [--log-mb MB] [--replay FILE]
            [--follow FILE] [--sudo] [--no-sudo] [--interval MS] [--no-media]
            [--no-smc] [--smc-all] [--no-temps] [--charts {auto,pixels,text}]
-           [--ane-max W]
+           [--ane-max W] [--headless]
 
 pow: a live view of power, load, temperature and fans on Apple Silicon, like top.
 
@@ -41,6 +41,9 @@ Recording and playback
   pow --log-raw FILE     also keep the raw powermetrics output in FILE, the same way (starts with sudo)
   pow --replay FILE      run through a finished --log CSV or raw powermetrics file, then print the last frame
   pow --follow FILE      show a --log CSV or raw file that another pow is writing, keeping up as it rotates
+  pow --headless --log FILE
+                         record only, for scripts: no screen and no keys; sudo powermetrics into the CSV until
+                         Ctrl-C, SIGINT or SIGTERM. sudo must already hold your password (run `sudo -v` first)
 
 Private data (sudo)
   pow                    starts on IOReport, no password. On macOS 27 the CPU and ANE energy counters only update
@@ -65,6 +68,8 @@ recording and playback:
                         (default: 64)
   --replay FILE         run through a finished log, then print the last frame
   --follow FILE         show a log another pow is writing
+  --headless            record only, for scripts: needs --log and sudo already
+                        holding your password; no screen, no keys
 
 sources:
   --sudo                start with sudo powermetrics, asking for your password

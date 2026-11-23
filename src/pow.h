@@ -105,6 +105,7 @@ typedef struct LineSrc LineSrc;
 LineSrc *src_file(const char *path);
 LineSrc *src_follow(const char *path);
 LineSrc *src_powermetrics(int interval, const char *raw_path, long cap);
+extern int pm_sudo_noninteractive;                   /* --headless: run sudo -n */
 char *src_line(LineSrc *s);                /* the next line (static buffer), or NULL at the end or on interrupt */
 void src_close(LineSrc *s);                /* close it; a powermetrics source's sudo is stopped and reaped */
 char *first_line(const char *path);        /* the first whole line, waiting for it */

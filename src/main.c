@@ -15,7 +15,7 @@ static const char USAGE[] =
     "usage: pow [-h] [--log FILE] [--log-raw FILE] [--log-mb MB] [--replay FILE]\n"
     "           [--follow FILE] [--no-sudo] [--interval MS] [--no-media] [--no-smc]\n"
     "           [--smc-all] [--no-temps] [--charts {auto,pixels,text}]\n"
-    "           [--ane-max W]\n";
+    "           [--ane-max W] [--headless]\n";
 
 static void die_usage(const char *fmt, const char *arg) {
     fputs(USAGE, stderr);
@@ -28,6 +28,7 @@ static void die_usage(const char *fmt, const char *arg) {
 typedef struct {
     const char *log, *log_raw, *replay, *follow; double log_mb, ane_max; int interval;
     int sudo, no_sudo, no_media, no_smc, smc_all, no_temps; int charts;   /* 0 auto, 1 pixels, 2 text */
+    int headless;                                                        /* November 17th: log only, no screen */
 } Opts;
 
 static double num(const char *s, const char *opt, int integer) {
@@ -41,13 +42,14 @@ static double num(const char *s, const char *opt, int integer) {
 }
 
 static void parse(int argc, char **argv, Opts *o) {
-    enum { LOG = 256, LOG_RAW, LOG_MB, REPLAY, FOLLOW, SUDO, NO_SUDO, INTERVAL, NO_MEDIA, NO_SMC, SMC_ALL, NO_TEMPS, CHARTS, ANE_MAX };
+    enum { LOG = 256, LOG_RAW, LOG_MB, REPLAY, FOLLOW, SUDO, NO_SUDO, INTERVAL, NO_MEDIA, NO_SMC, SMC_ALL, NO_TEMPS, CHARTS, ANE_MAX, HEADLESS };
     static const struct option L[] = {
         {"help", no_argument, 0, 'h'}, {"log", required_argument, 0, LOG}, {"log-raw", required_argument, 0, LOG_RAW},
         {"log-mb", required_argument, 0, LOG_MB}, {"replay", required_argument, 0, REPLAY}, {"follow", required_argument, 0, FOLLOW},
         {"sudo", no_argument, 0, SUDO}, {"no-sudo", no_argument, 0, NO_SUDO}, {"interval", required_argument, 0, INTERVAL}, {"no-media", no_argument, 0, NO_MEDIA},
         {"no-smc", no_argument, 0, NO_SMC}, {"smc-all", no_argument, 0, SMC_ALL}, {"no-temps", no_argument, 0, NO_TEMPS},
-        {"charts", required_argument, 0, CHARTS}, {"ane-max", required_argument, 0, ANE_MAX}, {0, 0, 0, 0}};
+        {"charts", required_argument, 0, CHARTS}, {"ane-max", required_argument, 0, ANE_MAX},
+        {"headless", no_argument, 0, HEADLESS}, {0, 0, 0, 0}};
     memset(o, 0, sizeof *o);
     o->log_mb = 64; o->ane_max = 7.5; o->interval = 1000;
     opterr = 0;
@@ -68,6 +70,7 @@ static void parse(int argc, char **argv, Opts *o) {
         case SMC_ALL: o->smc_all = 1; break;
         case NO_TEMPS: o->no_temps = 1; break;
         case ANE_MAX: o->ane_max = num(optarg, "--ane-max", 0); break;
+        case HEADLESS: o->headless = 1; break;
         case CHARTS:
             if (!strcmp(optarg, "auto")) o->charts = 0;
             else if (!strcmp(optarg, "pixels")) o->charts = 1;
@@ -81,6 +84,12 @@ static void parse(int argc, char **argv, Opts *o) {
     if (optind < argc) die_usage("unrecognized arguments: %s", argv[optind]);
     if (o->sudo && o->no_sudo) die_usage("%s", "--sudo and --no-sudo together");
     if (o->interval <= 0) die_usage("argument --interval: must be positive: '%s'", "0");
+    if (o->headless) {                               /* scripts: powermetrics into --log, nothing drawn, no keys */
+        if (!o->log) die_usage("%s", "--headless needs --log FILE");
+        if (o->no_sudo) die_usage("%s", "--headless reads powermetrics, so not with --no-sudo");
+        if (o->replay || o->follow) die_usage("%s", "--headless records; not with --replay or --follow");
+        o->sudo = 1; o->no_media = 1; o->no_temps = 1; o->charts = 2;
+    }
 }
 
 static char *expand(const char *p) {                 /* ~ at the start: the home folder */
@@ -235,6 +244,15 @@ int main(int argc, char **argv) {
             printf("raw powermetrics -> %s  (ring buffer, %g MB in all with %s.1)\n", o.log_raw, o.log_mb, o.log_raw);
         }
         fflush(stdout);
+        if (o.headless) {                            /* never prompt: sudo must already hold your password */
+            if (system("sudo -n true >/dev/null 2>&1") != 0) {
+                fprintf(stderr, "pow: --headless needs sudo without a prompt; run `sudo -v` first, in the same terminal\n");
+                return 1;
+            }
+            pm_sudo_noninteractive = 1;
+            printf("pow: headless, a sample every %d ms from sudo powermetrics; stops on Ctrl-C, SIGINT or SIGTERM\n", o.interval);
+            fflush(stdout);
+        }
         if (use_pm) { src = src_powermetrics(o.interval, raw, cap); if (!src) { perror("pow: powermetrics"); return 1; } }
         else ioreport = 1;
     }
@@ -263,8 +281,8 @@ int main(int argc, char **argv) {
     int test_host = getenv("POW_TEST_HOST") != NULL;   /* make check: no chip name or power mode, so output is the same on any machine */
     if (live && !test_host) chip_name(st.chip, sizeof st.chip);
 
-    if (live) bg_probe();
-    if (live && o.charts != 2) {
+    if (live && !o.headless) bg_probe();
+    if (live && !o.headless && o.charts != 2) {
         char reply[2048]; int shm_ok = 0;
         int ok = gfx_probe(reply, sizeof reply, &GFX.cw, &GFX.ch, &shm_ok);
         GFX.on = ok || o.charts == 1;
@@ -275,7 +293,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "pow: %s TERM_PROGRAM=%s kitty graphics %s, charts %s, images by %s, cell %.1fx%.1f px, reply b'%s'\n", t,
                 tp ? tp : "", ok ? "yes" : "no", GFX.on ? "pixels" : "text", GFX.shm ? "shared memory" : "zlib", GFX.cw, GFX.ch, reply);
     }
-    if (live) { fputs("\x1b[?1049h\x1b[?25l", stdout); fflush(stdout); }   /* alternate screen, hide cursor */
+    if (live && !o.headless) { fputs("\x1b[?1049h\x1b[?25l", stdout); fflush(stdout); }   /* alternate screen, hide cursor */
+    long logged = 0;
 
     int held = 0, keyed = 0; double hmw[NUNITS] = {0}, hms = 0; int hhas[NUNITS] = {0};
     Sample *s = malloc(sizeof *s); MediaRead mr;
@@ -353,7 +372,7 @@ int main(int argc, char **argv) {
             }
             s->nfans = nf; s->has_fans = 1;
         }
-        if (logging) samplelog_write(&lg, s);
+        if (logging) { samplelog_write(&lg, s); logged++; }
         if (temps) {
             static TempRead tr[256]; int n = temps_read(temps, tr, 256);
             if (smc) for (int i = 0; SMC_TEMP_KEYS[i][0] && n < 256; i++) {
@@ -362,7 +381,7 @@ int main(int argc, char **argv) {
             }
             temps_update(&st, tr, n);
         }
-        if (live) {
+        if (live && !o.headless) {
             if (!keyed) { quit_on_q(); theme_watch(1); keyed = 1; }   /* after sudo has asked, not before */
             theme_poll();
             if (ioreport && st.offer_sudo && keys_sudo_wanted() && go_private(o.interval, &src, &pm)) { ioreport = 0; st.offer_sudo = 0; }
@@ -377,6 +396,11 @@ int main(int argc, char **argv) {
             draw(&rows);
             lines_free(&rows);
         }
+    }
+    if (o.headless) {                                /* stop powermetrics with pow, and say what was kept */
+        src_close(src);
+        printf("pow: headless, %ld samples logged to %s\n", logged, o.log);
+        return 0;
     }
     theme_watch(0);
     term_restore();

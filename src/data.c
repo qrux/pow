@@ -263,6 +263,7 @@ LineSrc *src_follow(const char *path) {
     if (s->f) { fseek(s->f, 0, SEEK_END); fstat(fileno(s->f), &st); s->ino = st.st_ino; }
     return s;
 }
+int pm_sudo_noninteractive;                          /* --headless: sudo -n, so it never stops to prompt */
 LineSrc *src_powermetrics(int interval, const char *raw_path, long cap) {
     int fd[2];
     if (pipe(fd)) return NULL;
@@ -272,7 +273,8 @@ LineSrc *src_powermetrics(int interval, const char *raw_path, long cap) {
         dup2(fd[1], 1); close(fd[0]); close(fd[1]);
         signal(SIGPIPE, SIG_DFL);
         char iv[32]; snprintf(iv, sizeof iv, "%d", interval);
-        execlp("sudo", "sudo", "powermetrics", "--samplers", "cpu_power,gpu_power", "-i", iv, (char *)NULL);
+        if (pm_sudo_noninteractive) execlp("sudo", "sudo", "-n", "powermetrics", "--samplers", "cpu_power,gpu_power", "-i", iv, (char *)NULL);
+        else execlp("sudo", "sudo", "powermetrics", "--samplers", "cpu_power,gpu_power", "-i", iv, (char *)NULL);
         _exit(127);
     }
     close(fd[1]);

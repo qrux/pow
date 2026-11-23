@@ -34,6 +34,7 @@ pow --sudo                # start with sudo powermetrics (CPU and ANE watts)
 pow --log ~/pow.csv       # watch and record
 pow --replay ~/pow.csv    # play back a finished recording
 pow --follow ~/pow.csv    # watch a recording another pow is writing
+pow --headless --log ~/pow.csv   # record only, for scripts (run sudo -v first)
 pow --help                # every flag
 ```
 
@@ -76,7 +77,7 @@ pow is never built with entitlements; the private counters come from
 milliwatts, cluster and per-core activity, and fan rpm. The log is a ring of
 two halves, `FILE` and `FILE.1`, together at most `--log-mb` (default 64 MB).
 `--log-raw FILE` keeps the raw `powermetrics` output
-the same way. Media encode and decode, temperatures, SoC power and SMC power
+the same way. For scripts, `--headless --log FILE` records with no screen and no keys, and stops cleanly on Ctrl-C, SIGINT or SIGTERM; it never prompts, so run `sudo -v` first. Media encode and decode, temperatures, SoC power and SMC power
 are shown live only and aren't recorded.
 
 ## Building and testing

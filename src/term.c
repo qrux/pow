@@ -178,6 +178,7 @@ __attribute__((constructor)) static void sig_setup(void) {
     struct sigaction sa; memset(&sa, 0, sizeof sa);
     sa.sa_handler = on_sigint; sigemptyset(&sa.sa_mask); sa.sa_flags = 0;
     sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);                   /* November 17th: a script stopping pow --headless */
     signal(SIGPIPE, SIG_IGN);
     main_thread = pthread_self();
 }
