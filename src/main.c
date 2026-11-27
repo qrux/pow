@@ -298,7 +298,7 @@ int main(int argc, char **argv) {
 
     int held = 0, keyed = 0; double hmw[NUNITS] = {0}, hms = 0; int hhas[NUNITS] = {0};
     Sample *s = malloc(sizeof *s); MediaRead mr;
-    int ended = 0;
+    int ended = 0, drawn = 0;
     while (!interrupted && !ended) {
         /* the next sample */
         int got = 0;
@@ -395,6 +395,7 @@ int main(int argc, char **argv) {
             frame(&st, cols, lines, &rows);
             draw(&rows);
             lines_free(&rows);
+            drawn = 1;
         }
     }
     if (o.headless) {                                /* stop powermetrics with pow, and say what was kept */
@@ -407,6 +408,13 @@ int main(int argc, char **argv) {
     if (live) {
         if (GFX.on) fputs("\x1b_Ga=d,d=A,q=2\x1b\\", stdout);
         fputs("\x1b[?25h\x1b[?1049l" RESET, stdout); fflush(stdout);
+        if (drawn) {                                 /* the last frame stays on the normal screen */
+            int cols, lines; term_size(&cols, &lines);
+            Lines rows = {0};
+            frame(&st, cols, lines, &rows);
+            draw_kept(&rows, lines);
+            lines_free(&rows);
+        }
         if (media_err[0]) puts(media_err);
         if (smc_err[0]) puts(smc_err);
         if (temps_err[0]) puts(temps_err);

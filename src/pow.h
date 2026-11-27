@@ -174,11 +174,13 @@ typedef struct {
 } State;
 void frame(State *st, int cols, int lines, Lines *out);
 void draw(Lines *rows);
+void draw_kept(Lines *rows, int lines);   /* at quit, on the normal screen: the last frame stays, with its images */
 
 /* on: draw charts and gauges as images; shm: hand the terminal raw pixels in shared memory (t=s) instead of zlib;
  * cache: skip a chart whose pixels didn't change, and delete charts that went away (the live view only, so the
- * tests still draw every frame in full and compare with pow.py) */
-typedef struct { int on; double cw, ch; int shm, cache; } Gfx;
+ * tests still draw every frame in full and compare with pow.py); anon: send images with no id, so they can't be
+ * replaced or deleted later (the frame kept on the normal screen at quit) */
+typedef struct { int on; double cw, ch; int shm, cache, anon; } Gfx;
 int shm_send(const unsigned char *px, size_t n, char *name, size_t namen);   /* pixels into a new shm object */
 extern unsigned SHM_SEQ;                   /* how many shm objects shm_send has made: /pow.<pid>.<0..SHM_SEQ-1> */
 extern Gfx GFX;

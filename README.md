@@ -45,7 +45,8 @@ pow --headless --log ~/pow.csv   # record only, for scripts (run sudo -v first)
 pow --help                # every flag
 ```
 
-Keys: **q** or Ctrl-C quits, **P** switches to sudo without restarting, **E**
+Keys: **q** or Ctrl-C quits, leaving the last frame on the screen (images and
+all) with the prompt under it; **P** switches to sudo without restarting, **E**
 lays a power line over the CPU and GPU load charts, and **Space** cycles the
 chart styles.
 

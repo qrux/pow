@@ -54,7 +54,8 @@ Private data (sudo)
   pow --sudo             start with `sudo powermetrics`, asking first, as pow used to
   pow --no-sudo          never ask: no P, and CPU and ANE watts show "needs sudo"
 
-q quits (so does Ctrl-C). P switches to sudo, once. E shows or hides the power line. Space cycles the charts.
+q quits (so does Ctrl-C), leaving the last frame on the screen, images and all. P switches to sudo, once. E
+shows or hides the power line. Space cycles the charts.
 
 options:
   -h, --help            show this help message and exit

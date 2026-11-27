@@ -10,7 +10,7 @@
 #include <sys/mman.h>
 #include <zlib.h>
 
-Gfx GFX = {0, 10, 20, 0, 0};
+Gfx GFX = {0, 10, 20, 0, 0, 0};
 
 #define LABEL_W 9
 #define NUM_W 9
@@ -946,10 +946,12 @@ int shm_send(const unsigned char *px, size_t n, char *name, size_t namen) {
  * 4096-byte chunks. q=2 no replies, C=1 the cursor stays. */
 static void kitty_send(Sb *o, int row, int col, const unsigned char *rgba, size_t n, int w, int h, int id, int cells, int rows) {
     sb_addf(o, "\x1b[%d;%dH", row, col);
+    char idk[32] = "";                               /* anon: no id, so a later pow can't replace or delete it */
+    if (!GFX.anon) snprintf(idk, sizeof idk, "i=%d,p=1,", id);
     char name[64];
     if (GFX.shm && shm_send(rgba, n, name, sizeof name)) {
         Sb d = {0}; b64(&d, (const unsigned char *)name, strlen(name));
-        sb_addf(o, "\x1b_Ga=T,f=32,t=s,s=%d,v=%d,S=%zu,i=%d,p=1,c=%d,r=%d,q=2,C=1,z=-1;%s\x1b\\", w, h, n, id, cells, rows, d.p);
+        sb_addf(o, "\x1b_Ga=T,f=32,t=s,s=%d,v=%d,S=%zu,%sc=%d,r=%d,q=2,C=1,z=-1;%s\x1b\\", w, h, n, idk, cells, rows, d.p);
         sb_free(&d);
         return;
     }
@@ -959,7 +961,7 @@ static void kitty_send(Sb *o, int row, int col, const unsigned char *rgba, size_
     Sb d = {0}; b64(&d, z, zn); free(z);
     for (size_t i = 0; i < d.n; i += 4096) {
         int more = i + 4096 < d.n;
-        if (i == 0) sb_addf(o, "\x1b_Ga=T,f=32,o=z,s=%d,v=%d,i=%d,p=1,c=%d,r=%d,q=2,C=1,z=-1,m=%d;", w, h, id, cells, rows, more);
+        if (i == 0) sb_addf(o, "\x1b_Ga=T,f=32,o=z,s=%d,v=%d,%sc=%d,r=%d,q=2,C=1,z=-1,m=%d;", w, h, idk, cells, rows, more);
         else sb_addf(o, "\x1b_Gm=%d;", more);
         sb_addn(o, d.p + i, d.n - i < 4096 ? d.n - i : 4096);
         sb_add(o, "\x1b\\");
@@ -1195,7 +1197,7 @@ void draw(Lines *rows) {
                 free(SHOWN[i].px); SHOWN[i] = (Shown){0};
             }
         ms[nstat % 60] = now_ms() - t; kb[nstat % 60] = (double)(o.n - before) / 1024; nstat++; frames++;
-        if (frames % 10 == 0) {
+        if (frames % 10 == 0 && !GFX.anon) {
             int k = nstat < 60 ? nstat : 60; double sm = 0, mx = 0, sk = 0;
             for (int i = 0; i < k; i++) { sm += ms[i]; sk += kb[i]; if (ms[i] > mx) mx = ms[i]; }
             char t2[16]; time_t now = time(NULL); strftime(t2, sizeof t2, "%H:%M:%SZ", gmtime(&now));
@@ -1208,4 +1210,16 @@ void draw(Lines *rows) {
     size_t off = 0;
     while (off < o.n) { ssize_t w = write(1, o.p + off, o.n - off); if (w <= 0) break; off += (size_t)w; }
     sb_free(&o); free(f);
+}
+
+/* At quit, on the normal screen: the last frame stays there, images and all, like a printout. Scroll the screen up
+ * into the scrollback until the cursor's line is the top line, draw the frame from there with every image sent
+ * again (and with no id, so the next pow can't take it back), and leave the cursor under it for the prompt. */
+void draw_kept(Lines *rows, int lines) {
+    for (int i = 1; i < lines; i++) fputs("\n", stdout);
+    view_reset_images(); NGL = 0;
+    GFX.cache = 0; GFX.anon = 1;
+    draw(rows);
+    if (rows->n < lines) printf("\x1b[%d;1H", rows->n + 1); else printf("\x1b[%d;1H\n", lines);
+    fflush(stdout);
 }
